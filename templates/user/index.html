@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+{% for countrie in countries %}
+    <h3>{{ countrie.name }}</h3>
+    <h6>{{ countrie.official_name}}</h6>
+{% endfor %}
+</body>
+</html>
