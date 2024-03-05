@@ -4,75 +4,7 @@ import pycountry
 from allcities import cities
 import os
 
-
-def add_countries():
-    with app.app_context():
-        countries = pycountry.countries
-        for state in countries:
-            country_old = Country.query.filter(Country.name == state.name).first()
-            if not country_old:
-                country_new = Country(name=state.name, official_name=state.official_name, code=state.alpha_2)
-                country_new.add()
-            else:
-                country_old.official_name = state.official_name
-                country_old.code = state.alpha_2
-                db.session.commit()
-        return True
-
-
-class CountryClass:
-    def __init__(self, name):
-        self.name = name
-
-    def get_universities(self):
-        country = Country.query.filter(Country.name == self.name).first()
-        university_list = []
-        print(len(country.universities))
-        for university in country.universities:
-            info = {
-                'name': university.name,
-                'web_pages': university.web_pages,
-            }
-            university_list.append(info)
-        return university_list
-
-    def add_university(self):
-        with app.app_context():
-            uni = universities.API()
-            canadian = uni.search(country=self.name)
-            country = Country.query.filter(Country.name == self.name).first()
-            for university in canadian:
-                university_old = University.query.filter(University.name == university.name).first()
-                if not university_old:
-                    university_new = University(name=university.name, web_pages=university.web_pages[0],
-                                                country_id=country.id)
-                    university_new.add()
-                else:
-                    university_old.web_pages = university.web_pages[0]
-                    db.session.commit()
-            return True
-
-    def add_city(self):
-        country = Country.query.filter(Country.name == self.name).first()
-        gg = cities.filter(country_code=country.code)
-        for city in gg:
-            city_old = City.query.filter(City.name == city.name, City.county_id == country.id).first()
-            if not city_old:
-                city_new = City(name=city.name, county_id=country.id)
-                city_new.add()
-        return True
-
-    def get_country(self):
-        with app.app_context():
-            state = Country.query.filter(Country.name == self.name).first()
-            object = {
-                'country': state.json(),
-                'cities': []
-            }
-            for city in state.cities:
-                object['cities'].append(city.json())
-            return object
-
+api = '/api'
 
 img_file = 'media/img/'
 list_file = [
@@ -151,3 +83,72 @@ def user_img():
 def package_img():
     upload_folder = f"{img_file}package_img/"
     return upload_folder
+
+
+def add_countries():
+    with app.app_context():
+        countries = pycountry.countries
+        for state in countries:
+            country_old = Country.query.filter(Country.name == state.name).first()
+            if not country_old:
+                country_new = Country(name=state.name, official_name=state.official_name, code=state.alpha_2)
+                country_new.add()
+            else:
+                country_old.official_name = state.official_name
+                country_old.code = state.alpha_2
+                db.session.commit()
+        return True
+
+
+class CountryClass:
+    def __init__(self, name):
+        self.name = name
+
+    def get_universities(self):
+        country = Country.query.filter(Country.name == self.name).first()
+        university_list = []
+        print(len(country.universities))
+        for university in country.universities:
+            info = {
+                'name': university.name,
+                'web_pages': university.web_pages,
+            }
+            university_list.append(info)
+        return university_list
+
+    def add_university(self):
+        with app.app_context():
+            uni = universities.API()
+            canadian = uni.search(country=self.name)
+            country = Country.query.filter(Country.name == self.name).first()
+            for university in canadian:
+                university_old = University.query.filter(University.name == university.name).first()
+                if not university_old:
+                    university_new = University(name=university.name, web_pages=university.web_pages[0],
+                                                country_id=country.id)
+                    university_new.add()
+                else:
+                    university_old.web_pages = university.web_pages[0]
+                    db.session.commit()
+            return True
+
+    def add_city(self):
+        country = Country.query.filter(Country.name == self.name).first()
+        gg = cities.filter(country_code=country.code)
+        for city in gg:
+            city_old = City.query.filter(City.name == city.name, City.county_id == country.id).first()
+            if not city_old:
+                city_new = City(name=city.name, county_id=country.id)
+                city_new.add()
+        return True
+
+    def get_country(self):
+        with app.app_context():
+            state = Country.query.filter(Country.name == self.name).first()
+            object = {
+                'country': state.json(),
+                'cities': []
+            }
+            for city in state.cities:
+                object['cities'].append(city.json())
+            return object

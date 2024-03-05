@@ -134,7 +134,6 @@ class User(db.Model):
     surname = Column(String, default='')
     country_id = Column(Integer, ForeignKey('country.id'))
     school_studied = Column(String, default='')
-    date_of_expiration = Column(Date)
     address = Column(String, default='')
     nationality = Column(String, default='')
     email = Column(String, default='')
@@ -184,17 +183,13 @@ class User(db.Model):
                 'name': 'place_of_birth',
                 "order": 5
             }, {
-                "value": self.date_of_expiration,
-                'name': 'date_of_expiration',
-                "order": 8
-            }, {
                 "value": self.school_studied,
                 'name': 'school_studied',
                 "order": 6
             }, {
                 "value": passport_upload,
                 'name': 'passport_upload',
-                "order": 9
+                "order": 8
             }
         ]
 
@@ -223,7 +218,7 @@ class User(db.Model):
                 {
                     "value": self.passport_number,
                     'name': 'passport_number',
-                    "order": 5
+                    "order": 6
                 }, {
                     "value": self.address,
                     'name': 'address',
@@ -231,7 +226,7 @@ class User(db.Model):
                 }, {
                     "value": self.nationality,
                     'name': 'nationality',
-                    "order": 4
+                    "order": 5
                 }, {
                     "value": self.email,
                     'name': 'email',
@@ -245,9 +240,13 @@ class User(db.Model):
                     'name': 'date_birth',
                     "order": 3
                 }, {
+                    "value": self.country_id,
+                    'name': 'country_id',
+                    "order": 4
+                }, {
                     "value": passport_upload,
                     'name': 'passport_upload',
-                    "order": 6
+                    "order": 7
                 }
             ]
         }
@@ -335,8 +334,9 @@ class Country(db.Model):
 
     def json(self):
         info = {
+            'id': self.id,
             'name': self.name,
-            'official_name': self.official_name
+            # 'official_name': self.official_name
         }
         return info
 
