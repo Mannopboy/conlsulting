@@ -1,7 +1,10 @@
-from app import *
-from backend.settings.settings import *
+from app import request, app, jsonify, json, db
+from backend.settings.settings import check_payment, api, Messages, checkFile, img_file3, package_img, img_file
 from werkzeug.utils import secure_filename
 from flask_jwt_extended import jwt_required
+from datetime import date
+from backend.models.basic_model import Tariff, Package, User, StudentConnectedTariff, AdditionTariff, Cost
+import os
 
 
 @app.route(f'{api}/get_tariff')
@@ -24,7 +27,8 @@ def delete_package(package_id):
     package.deleted = True
     db.session.commit()
     return jsonify({
-        'status': True
+        'status': True,
+        'text': Messages.delete_package()
     })
 
 
@@ -44,13 +48,13 @@ def change_package():
     package.text = textarea
     if status == 'true':
         file = request.files.get('img')
-        if file:
+        if file and checkFile(file.filename):
             if package.img:
-                os.remove(package.img)
+                os.remove(f'{img_file3}{package.img}')
             img_name = secure_filename(file.filename)
             app.config["UPLOAD_FOLDER"] = package_img()
             file.save(os.path.join(app.config["UPLOAD_FOLDER"], img_name))
-            img_url = package_img() + img_name
+            img_url = img_file + 'package_img/' + img_name
             package.img = img_url
             package.status = True
         else:
@@ -64,7 +68,8 @@ def change_package():
     db.session.commit()
     return jsonify({
         'status': True,
-        'package': package.json()
+        'package': package.json(),
+        'text': Messages.change()
     })
 
 
@@ -82,7 +87,6 @@ def get_package():
 @app.route(f'{api}/register_package', methods=['POST'])
 @jwt_required()
 def register_package():
-    user = current_user()
     form = json.dumps(dict(request.form))
     data = json.loads(form)
     req = eval(data['res'])
@@ -93,17 +97,18 @@ def register_package():
     tariff = Tariff.query.filter(Tariff.id == tariff_id).first()
     if type == 'package_img':
         file = request.files.get('img')
-        if file:
+        if file and checkFile(file.filename):
             # img_name = f'{secure_filename(file.filename)}#/{random.randrange(1, 1000)}{tariff.id}/#'
             img_name = secure_filename(file.filename)
             app.config["UPLOAD_FOLDER"] = package_img()
             file.save(os.path.join(app.config["UPLOAD_FOLDER"], img_name))
-            img_url = package_img() + img_name
+            img_url = img_file + 'package_img/' + img_name
             package = Package(name=title, text=textarea, tariff_id=tariff.id, img=img_url, status=True, deleted=False)
             package.add()
             return jsonify({
                 'status': True,
-                'package': package.json()
+                'package': package.json(),
+                'text': Messages.register_package()
             })
         else:
             return jsonify({
@@ -115,7 +120,68 @@ def register_package():
         package.add()
         return jsonify({
             'status': True,
-            'package': package.json()
+            'package': package.json(),
+            'text': Messages.register_package()
+        })
+
+
+@app.route(f'{api}/add_connect', methods=['POST'])
+@jwt_required()
+def add_connect():
+    req = request.get_json()
+    print(req)
+    user_id = req['user_id']
+    tariff_id = req['tariff_id']
+    today = date.today()
+    student = User.query.filter(User.id == user_id).first()
+    tariff = Tariff.query.filter(Tariff.id == tariff_id).first()
+    connected_student = StudentConnectedTariff.query.filter(StudentConnectedTariff.student_id == student.id,
+                                                            StudentConnectedTariff.tariff_id == tariff.id).first()
+    if not connected_student:
+        connected_student = StudentConnectedTariff(student_id=student.id, tariff_id=tariff.id, date=today)
+        connected_student.add()
+        cost = Cost(cost=int(tariff.cost), student_id=student.id, date=today)
+        cost.add()
+        return jsonify({
+            'status': check_payment(student.id),
+            'text': Messages.add_connect()
+        })
+    else:
+        return jsonify({
+            'status': False
+        })
+
+
+@app.route(f'{api}/change_tariffs', methods=['PUT'])
+@jwt_required()
+def change_tariffs():
+    req = request.get_json()
+    tariff_id = req['id']
+    name = req['name']
+    cost = req['cost']
+    color = req['color']
+    additions = req['selectedSubs']
+    tariff = Tariff.query.filter(Tariff.id == tariff_id).first()
+    if tariff:
+        tariff.name = name
+        tariff.cost = cost
+        tariff.color = color
+        addition_tariff = AdditionTariff.query.filter(AdditionTariff.first_tariff == tariff.id).order_by(
+            AdditionTariff.id).all()
+        for old_addition_tariff in addition_tariff:
+            AdditionTariff.query.filter(AdditionTariff.first_tariff == old_addition_tariff.first_tariff).delete()
+            db.session.commit()
+        for addition in additions:
+            addition_tariff = AdditionTariff(first_tariff=tariff.id, second_tariff=addition)
+            addition_tariff.add()
+        return jsonify({
+            'status': True,
+            'tariff': tariff.json(),
+            'text': Messages.change_tariff()
+        })
+    else:
+        return jsonify({
+            'status': False
         })
 
 
@@ -138,26 +204,7 @@ def register_tariff():
         return jsonify({
             'status': True,
             'tariff': tariff.json(),
-        })
-    else:
-        return jsonify({
-            'status': False
-        })
-
-
-@app.route(f'{api}/register_connect', methods=['POST'])
-@jwt_required()
-def register_connect():
-    req = request.get_json()
-    user_id = req['user_id']
-    tariff_id = req['tariff_id']
-    user = User.query.filter(User.id == user_id).first()
-    tariff = Tariff.query.filter(Tariff.id == tariff_id).first()
-    if user and tariff:
-        new_connect = StudentConnectedTariff(student_id=user.student.id, tariff_id=tariff.id)
-        new_connect.add()
-        return jsonify({
-            'status': True
+            'text': Messages.register_tariff()
         })
     else:
         return jsonify({

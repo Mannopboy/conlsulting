@@ -11,14 +11,16 @@ app.config.from_object('backend.models.config')
 db = db_setup(app)
 
 migrate = Migrate(app, db)
-CORS(app, resources={r"/*": {"origins": "*"}})
-socketio = SocketIO(app, cors_allowed_origins="*")
+CORS(app)
+# socketio = SocketIO(app, cors_allowed_origins="*")
 jwt = JWTManager(app)
 
 from backend.user.app import *
+from backend.admin.app import *
 from backend.massage.app import *
+from backend.universities.main import *
 from backend.security.token import *
 from backend.tariff.register import *
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True)
+    app.run()
