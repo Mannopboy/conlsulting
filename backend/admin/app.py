@@ -1,5 +1,5 @@
 from app import request, app, jsonify, db
-from backend.settings.settings import check_account_types, admin_code, api, add_account, delete_account, Messages
+from backend.settings.settings import admin_code, api, add_account, delete_account, Messages
 from flask_jwt_extended import jwt_required
 from datetime import date
 from backend.models.basic_model import User, AccountType, Payment
@@ -7,7 +7,6 @@ from backend.models.basic_model import User, AccountType, Payment
 
 # @app.route(f'{api}/test')
 # def test():
-#
 #     return jsonify({
 #         'status': True
 #     })
@@ -81,7 +80,6 @@ def add_payment(account_type_id):
     new_payment = Payment(pay=payment, student_id=student_id, account_type_id=account_type_id, date=today)
     new_payment.add()
     status = add_account(new_payment.id)
-    print(status)
     return jsonify({
         'status': status,
         'text': Messages.add_payment()
@@ -109,7 +107,6 @@ def get_payments(user_id):
     user = User.query.filter(User.id == user_id).first()
     if user.role == admin_code:
         payments = Payment.query.filter(Payment.deleted == False).order_by(Payment.id).all()
-        print(payments)
         list = []
         for payment in payments:
             list.append(payment.json())

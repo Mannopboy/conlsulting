@@ -1,4 +1,4 @@
-from app import request, jsonify, app, json, secure_filename
+from app import request, jsonify, json, secure_filename, app, render_template
 from flask_jwt_extended import jwt_required
 from backend.settings.settings import *
 from backend.models.basic_model import University, Country, Occupation, Images, UniversityOccupation
@@ -8,6 +8,35 @@ from backend.models.basic_model import University, Country, Occupation, Images, 
 @jwt_required()
 def get_universities():
     university_all = University.query.order_by(University.id).all()
+    list = []
+    for university in university_all:
+        list.append(university.json())
+    return jsonify({
+        'status': True,
+        'list': list
+    })
+
+
+@app.route(f'{api}/get_occupations_in_university', methods=['POST'])
+@jwt_required()
+def get_occupations_in_university():
+    university_id = request.get_json()
+    occupations = UniversityOccupation.query.filter(UniversityOccupation.university_id == university_id).order_by(
+        UniversityOccupation.id).all()
+    list = []
+    for occupation in occupations:
+        list.append(occupation.occupation.json())
+    return jsonify({
+        'status': True,
+        'list': list
+    })
+
+
+@app.route(f'{api}/get_universities_in_country', methods=['POST'])
+@jwt_required()
+def get_universities_in_country():
+    country_id = request.get_json()
+    university_all = University.query.filter(University.country_id == country_id).order_by(University.id).all()
     list = []
     for university in university_all:
         list.append(university.json())
@@ -36,7 +65,7 @@ def add_university():
         list.append(files['image_4'])
 
     name = req['name']
-    place = req['place']
+    place = req['text']
     web_pages = req['web_pages']
     country_id = None
     for id in req['country_id']:
@@ -81,6 +110,31 @@ def get_countries():
     })
 
 
+@app.route(f'{api}/change_occupation', methods=['POST'])
+@jwt_required()
+def change_occupation():
+    id = request.form.get('id')
+    name = request.form.get('name')
+    file = request.files.get('img')
+    occupation = Occupation.query.filter(Occupation.id == id).first()
+    if occupation:
+        occupation.name = eval(name)
+        if file:
+            Images.query.filter(Images.occupation_id == id).delete()
+            img_name = secure_filename(file.filename)
+            app.config["UPLOAD_FOLDER"] = img_file2 + 'university_img'
+            file.save(os.path.join(app.config["UPLOAD_FOLDER"], img_name))
+            img_url = f'{img_file}university_img/{img_name}'
+            img = Images(img=img_url, occupation_id=id, file_type_id=18)
+            img.add()
+        db.session.commit()
+        return jsonify({
+            'status': True,
+            'text': Messages.change_occupation(),
+            'occupation': occupation.json()
+        })
+
+
 @app.route(f'{api}/get_occupation', methods=['GET'])
 @jwt_required()
 def get_occupation():
@@ -115,9 +169,9 @@ def change_university():
     if 'image_4' in files:
         list.append(files['image_4'])
 
-    university_id = req['university_id']
+    university_id = req['id']
     name = req['name']
-    place = req['place']
+    place = req['text']
     web_pages = req['web_pages']
     country_id = None
     for id in req['country_id']:
@@ -133,20 +187,18 @@ def change_university():
         university_occupations = UniversityOccupation.query.filter(
             UniversityOccupation.university_id == university.id).order_by(UniversityOccupation.id).all()
         for item in university_occupations:
-            item.delete()
+            UniversityOccupation.query.filter(UniversityOccupation.id == item.id).delete()
             db.session.commit()
         for id in list_id:
             university_occupation = UniversityOccupation(university_id=university.id, occupation_id=id)
             university_occupation.add()
-        print(list)
-        print(new_list)
         for id in new_list:
             Images.query.filter(Images.id == id).delete()
             db.session.commit()
         for file in list:
             if file and checkFile(file.filename):
                 img_name = secure_filename(file.filename)
-                app.config["UPLOAD_FOLDER"] = img_file2 + 'country_img'
+                app.config["UPLOAD_FOLDER"] = img_file2 + 'university_img'
                 file.save(os.path.join(app.config["UPLOAD_FOLDER"], img_name))
                 img_url = f'{img_file}university_img/{img_name}'
                 img = Images(img=img_url, university_id=university.id, file_type_id=17)
@@ -188,8 +240,6 @@ def change_country():
         list.append(files['image_4'])
     if name:
         country = Country.query.filter(Country.id == id).first()
-        print(list)
-        print(new_list)
         for id in new_list:
             Images.query.filter(Images.id == id).delete()
             db.session.commit()
@@ -241,7 +291,6 @@ def register_img():
     form = json.dumps(dict(request.form))
     data = json.loads(form)
     req = eval(data['res'])
-    print(request.form)
     file = request.files.get('img')
     type = req['type']
     id_f = req['id']
@@ -265,7 +314,6 @@ def register_img():
         app.config["UPLOAD_FOLDER"] = img_file2 + file_url
         file.save(os.path.join(app.config["UPLOAD_FOLDER"], img_name))
         img_url = f'{img_file}{file_url}/{img_name}'
-        print(img_url)
         if file_url == 'country_img':
             img = Images(img=img_url, country_id=country.id, file_type_id=file_type.id)
             img.add()
@@ -296,7 +344,6 @@ def register_images():
     form = json.dumps(dict(request.form))
     data = json.loads(form)
     req = eval(data['res'])
-    print(req)
     files = request.files.get('img')
     type = req['type']
     id_f = req['id']
@@ -322,7 +369,6 @@ def register_images():
                 app.config["UPLOAD_FOLDER"] = img_file2 + file_url
                 file.save(os.path.join(app.config["UPLOAD_FOLDER"], img_name))
                 img_url = f'{img_file}{file_url}/{img_name}'
-                print(img_url)
                 if file_url == 'country_img':
                     img = Images(img=img_url, country_id=country.id, file_type_id=file_type.id)
                     img.add()

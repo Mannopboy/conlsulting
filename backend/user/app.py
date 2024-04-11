@@ -1,10 +1,35 @@
 from app import request, app, jsonify, db
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 from flask_jwt_extended import jwt_required, create_access_token, create_refresh_token
-from backend.settings.settings import *
-from backend.models.basic_model import User, FileType, Country, File, AdditionFile, Student
+from backend.settings.settings import student_code, Messages, api, admin_code, checkFile, img_file, img_file2, img_file3
+from backend.models.basic_model import User, FileType, Country, File, AdditionFile, Student, Payment
 import json
+import os
+
+
+@app.route(f'{api}/filter_payments', methods=['POST'])
+@jwt_required()
+def filter_payments():
+    first_year = request.get_json()['first_year']
+    second_year = request.get_json()['second_year']
+    payments = Payment.query.order_by(Payment.id).all()
+    list = []
+    if first_year and second_year:
+        for payment in payments:
+            if first_year[:4] <= payment.date.strftime('%Y') <= second_year[:4] and first_year[
+                                                                                    5:7] <= payment.date.strftime(
+                '%m') <= second_year[5:7] and first_year[8:] <= payment.date.strftime(
+                '%d') <= second_year[8:]:
+                list.append(payment.json())
+        return jsonify({
+            'status': True,
+            'list': list
+        })
+    else:
+        return jsonify({
+            'status': False
+        })
 
 
 @app.route(f'{api}/delete_student/<int:student_id>', methods=['DELETE'])
@@ -39,7 +64,6 @@ def get_students():
     if user.role == admin_code:
         list = []
         students = User.query.filter(User.role == student_code, User.deleted == False).order_by(User.id).all()
-        print(students)
         for student in students:
             list.append(student.list_json())
         return jsonify({
@@ -80,8 +104,6 @@ def check_username():
     for user in users:
         if user.username == username:
             status = False
-        else:
-            status = True
     return jsonify({
         'status': status
     })
@@ -113,7 +135,6 @@ def profile():
             }
             list.append(info)
             number += 1
-    print(user)
     if user.role == student_code:
         return jsonify({
             'status': True,
@@ -138,7 +159,6 @@ def profile():
 @jwt_required()
 def change_user():
     req = request.get_json()
-    print(req)
     user_id = req['user_id']
     name = req['name']
     surname = req['surname']
@@ -147,10 +167,14 @@ def change_user():
     number = req['number']
     passport_number = req['passport_number']
     date_birth = req['date_birth']
-    country_id = int(req['country_id'])
+    if req['country_id'] != '':
+        country_id = int(req['country_id'])
+    else:
+        country_id = None
     address = req['address']
     user = User.query.filter(User.id == user_id).first()
     user.name = name
+
     user.country_id = country_id
     user.surname = surname
     user.email = email
@@ -202,7 +226,7 @@ def register_addition_file():
                 if addition_file.file:
                     os.remove(addition_file.file)
                 img_name = secure_filename(file.filename)
-                app.config["UPLOAD_FOLDER"] = img_file + file_type
+                app.config["UPLOAD_FOLDER"] = img_file2 + file_type
 
                 file.save(os.path.join(app.config["UPLOAD_FOLDER"], img_name))
                 img_url = f'{img_file}{file_type}/{img_name}'
@@ -225,8 +249,6 @@ def register_file():
     form = json.dumps(dict(request.form))
     data = json.loads(form)
     req = eval(data['res'])
-    print(request.files)
-    print(request.form)
     file = request.files.get('img')
     type = req['type']
     user_id = req['id']
@@ -309,7 +331,6 @@ def login():
     if username_sign and check_password_hash(username_sign.password, password):
         access_token = create_access_token(identity=username)
         refresh_token = create_refresh_token(identity=username)
-        session['username'] = username
         return jsonify({
             'id': username_sign.id,
             'username': username_sign.username,
@@ -326,7 +347,6 @@ def login():
 
 @app.route(f'{api}/logout', methods=['POST'])
 def logout():
-    session['username'] = None
     return jsonify({
         'status': True,
         'text': Messages.logout()
@@ -372,7 +392,6 @@ def parents_information():
         }
         countries.append(info)
     if user:
-        print(user.student)
         return jsonify({
             'status': True,
             'countries': countries,
@@ -387,11 +406,9 @@ def parents_information():
 @app.route(f'{api}/change_personal_information', methods=['POST'])
 @jwt_required()
 def change_personal_information():
-    print(request.form)
     form = json.dumps(dict(request.form))
     data = json.loads(form)
     req = eval(data['res'])
-    print(req)
     user_id = req['id']
     name = req['name']
     surname = req['surname']
@@ -423,7 +440,7 @@ def change_personal_information():
         if not img:
             type_file = FileType.query.filter(FileType.id == 14).first()
             img_name = secure_filename(file.filename)
-            app.config["UPLOAD_FOLDER"] = img_file + type_file.name
+            app.config["UPLOAD_FOLDER"] = img_file2 + type_file.name
             file.save(os.path.join(app.config["UPLOAD_FOLDER"], img_name))
             img_url = f'{img_file}{type_file.name}/{img_name}'
             img = File(file=img_url, file_type_id=type_file.id, user_id=user.id)
@@ -432,7 +449,7 @@ def change_personal_information():
             if img.file:
                 os.remove(f'{img_file3}{img.file}')
             img_name = secure_filename(file.filename)
-            app.config["UPLOAD_FOLDER"] = img_file + img.file_type.name
+            app.config["UPLOAD_FOLDER"] = img_file2 + img.file_type.name
             file.save(os.path.join(app.config["UPLOAD_FOLDER"], img_name))
             img_url = f'{img_file}{img.type.name}/{img_name}'
             img.img = img_url
@@ -526,8 +543,6 @@ def change_portfolio():
     user_id = request.form.get('id')
     files = request.files
     user = User.query.filter(User.id == user_id).first()
-    print(request.form)
-    print(request.files)
     for file in files:
         file_type = file
         file = request.files.get(file)
@@ -543,8 +558,6 @@ def change_portfolio():
                 img.add()
             else:
                 file_old = File.query.filter(File.user_id == user.id, File.file_type_id == file_type.id).first()
-                print(file_old)
-                print(file_type.name)
                 if file_old.file:
                     os.remove(f'{img_file3}{file_old.file}')
                 img_name = secure_filename(file.filename)

@@ -1,9 +1,10 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from sqlalchemy import *
+from datetime import datetime
 import uuid
 
-url = 'http://192.168.1.104:5000/'
+url = 'http://192.168.1.107:5000/'
 
 db = SQLAlchemy()
 
@@ -268,15 +269,18 @@ class User(db.Model):
         for img in self.files:
             if img.file_type_id == 12:
                 user_img = f'{url}/{img.file}',
+        date = datetime.today()
+        if self.date_birth:
+            age = date.year - int(self.date_birth.strftime('%Y'))
+        else:
+            age = None
         info = {
             'id': self.id,
             'user_img': user_img,
             'full_name': f'{self.name} {self.surname}',
             'number': self.number,
-            'date_of_birth': self.date_birth,
+            'age': age,
             'balance': balance,
-            'nationality': self.nationality,
-            'passport_number': self.passport_number,
         }
         return info
 
@@ -294,7 +298,6 @@ class User(db.Model):
                 passport_upload = True
             else:
                 passport_upload = False
-        print(user_img)
         info = {
             "id": self.id,
             "name": self.name,
@@ -419,6 +422,8 @@ class Occupation(db.Model):
                                             order_by='UniversityOccupation.id')
     images = db.relationship('Images', backref='occupation',
                              order_by='Images.id')
+    student_connected_tariff = db.relationship('StudentConnectedTariff', backref='occupation',
+                                               order_by='StudentConnectedTariff.id')
 
     def add(self):
         db.session.add(self)
@@ -427,7 +432,7 @@ class Occupation(db.Model):
     def json(self):
         list = []
         for file in self.images:
-            list.append(f'{url}/{file.img}')
+            list.append(file.json())
         info = {
             'id': self.id,
             'name': self.name,
@@ -448,12 +453,6 @@ class UniversityOccupation(db.Model):
         db.session.add(self)
         db.session.commit()
 
-    def json(self):
-        info = {
-            'price': self.price
-        }
-        return info
-
 
 class University(db.Model):
     __tablename__ = 'university'
@@ -463,12 +462,14 @@ class University(db.Model):
     place = Column(String)
     web_pages = Column(String)
     price = Column(Integer)
-    stependiya = Column(Integer)
+    stipend = Column(Integer)
     country_id = Column(Integer, ForeignKey('country.id'))
     university_occupation = db.relationship('UniversityOccupation', backref='university',
                                             order_by='UniversityOccupation.id')
     images = db.relationship('Images', backref='university',
                              order_by='Images.id')
+    student_connected_tariff = db.relationship('StudentConnectedTariff', backref='university',
+                                               order_by='StudentConnectedTariff.id')
 
     def add(self):
         db.session.add(self)
@@ -478,9 +479,9 @@ class University(db.Model):
         list = []
         list2 = []
         for file in self.images:
-            list.append(f'{url}/{file.img}')
+            list.append(file.json())
         for occupation in self.university_occupation:
-            list2.append(occupation.json())
+            list2.append(occupation.occupation.json())
         info = {
             'id': self.id,
             'name': self.name,
@@ -506,8 +507,8 @@ class Country(db.Model):
     users = db.relationship('User', backref='country', order_by='User.id')
     images = db.relationship('Images', backref='country',
                              order_by='Images.id')
-
-    # students = db.relationship('Student', backref='country', order_by='Student.id')
+    student_connected_tariff = db.relationship('StudentConnectedTariff', backref='country',
+                                               order_by='StudentConnectedTariff.id')
 
     def add(self):
         db.session.add(self)
@@ -572,6 +573,7 @@ class Tariff(db.Model):
     uu_id = Column(String, default=uuid.uuid4())
     name = Column(String)
     color = Column(String)
+    number = Column(Integer, default=1)
     deleted = Column(Boolean, default=False)
     cost = Column(String)
     packages = db.relationship('Package', backref='tariff', order_by='Package.id')
@@ -598,7 +600,6 @@ class Tariff(db.Model):
                     if not package.deleted:
                         package_all.append(package.json())
         for tariff in additionTariff:
-            print(additionTariff)
             if tariff.first_tariff == self.id:
                 info = {
                     'id': tariff.second.id,
@@ -609,6 +610,7 @@ class Tariff(db.Model):
             'id': self.id,
             'name': self.name,
             'cost': self.cost,
+            'number': self.number,
             'color': self.color,
             'packages': package_all,
             'addition_tariffs': addition_tariffs
@@ -653,6 +655,9 @@ class StudentConnectedTariff(db.Model):
     deleted = Column(Boolean, default=False)
     student_id = Column(Integer, ForeignKey('student.id'))
     tariff_id = Column(Integer, ForeignKey('tariff.id'))
+    country_id = Column(Integer, ForeignKey('country.id'))
+    university_id = Column(Integer, ForeignKey('university.id'))
+    occupation_id = Column(Integer, ForeignKey('occupation.id'))
 
     def add(self):
         db.session.add(self)

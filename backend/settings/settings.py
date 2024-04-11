@@ -1,4 +1,4 @@
-from app import session, app
+from app import app
 import universities
 import pycountry
 from allcities import cities
@@ -18,7 +18,6 @@ def check_payment(user_id):
         balance += payment.pay
     for cost in costs:
         balance -= cost.cost
-    print(balance)
     if balance >= 0:
         return True
     else:
@@ -26,9 +25,8 @@ def check_payment(user_id):
 
 
 def admin():
-    admin = User.query.filter(User.id == 1).first()
-    print(admin)
-    if not admin:
+    admin_base = User.query.filter(User.id == 1).first()
+    if not admin_base:
         hashed = generate_password_hash(password='123')
         new_admin = User(username='admin', name='admin', password=hashed, role=admin_code)
         new_admin.add()
@@ -117,6 +115,10 @@ class Messages:
         return "Davlat o'zgardi"
 
     @staticmethod
+    def change_occupation():
+        return "Soha o'zgardi"
+
+    @staticmethod
     def register_occupation():
         return "Soha qo'shildi"
 
@@ -135,10 +137,8 @@ def checkFile(filename):
 
 def delete_account(payment_id):
     payment = Payment.query.filter(Payment.id == payment_id).first()
-    # print(type(payment.date))
     year = payment.date.strftime('%Y')
     month = payment.date.strftime('%m')
-    # print(type(date_payment))
     if payment:
         accounts = Account.query.order_by(Account.id).all()
         for account in accounts:
@@ -173,14 +173,11 @@ def add_account(payment_id):
     month = payment.date.strftime('%m')
     if payment:
         accounts = Account.query.order_by(Account.id).all()
+        account_id = False
         if accounts:
             for account in accounts:
                 if account.date.strftime('%Y') == year and account.date.strftime('%m') == month:
                     account_id = account.id
-                else:
-                    account_id = False
-        else:
-            account_id = False
         if account_id:
             account = Account.query.filter(Account.id == account_id).first()
             try:
@@ -205,7 +202,6 @@ def add_account(payment_id):
         else:
             date = payment.date.strftime('%Y-%m')
             date = datetime.strptime(date, "%Y-%m")
-            print(type(date))
             new_account = Account(date=date, balance=payment.pay)
             new_account.add()
             if payment.account_type_id == 1:
@@ -348,7 +344,6 @@ class CountryClass:
     def get_universities(self):
         country = Country.query.filter(Country.name == self.name).first()
         university_list = []
-        print(len(country.universities))
         for university in country.universities:
             info = {
                 'name': university.name,

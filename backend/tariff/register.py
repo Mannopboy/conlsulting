@@ -39,7 +39,6 @@ def change_package():
     data = json.loads(form)
     req = eval(data['res'])
     package_id = req['id']
-
     package = Package.query.filter(Package.id == package_id).first()
     name = req['title']
     textarea = req['textarea']
@@ -57,10 +56,6 @@ def change_package():
             img_url = img_file + 'package_img/' + img_name
             package.img = img_url
             package.status = True
-        else:
-            return jsonify({
-                'status': False
-            })
     else:
         link = req['link']
         package.status = False
@@ -98,7 +93,6 @@ def register_package():
     if type == 'package_img':
         file = request.files.get('img')
         if file and checkFile(file.filename):
-            # img_name = f'{secure_filename(file.filename)}#/{random.randrange(1, 1000)}{tariff.id}/#'
             img_name = secure_filename(file.filename)
             app.config["UPLOAD_FOLDER"] = package_img()
             file.save(os.path.join(app.config["UPLOAD_FOLDER"], img_name))
@@ -129,17 +123,23 @@ def register_package():
 @jwt_required()
 def add_connect():
     req = request.get_json()
-    print(req)
+    print(request.get_json())
     user_id = req['user_id']
     tariff_id = req['tariff_id']
+    list = req['list']
     today = date.today()
     student = User.query.filter(User.id == user_id).first()
     tariff = Tariff.query.filter(Tariff.id == tariff_id).first()
     connected_student = StudentConnectedTariff.query.filter(StudentConnectedTariff.student_id == student.id,
-                                                            StudentConnectedTariff.tariff_id == tariff.id).first()
-    if not connected_student:
-        connected_student = StudentConnectedTariff(student_id=student.id, tariff_id=tariff.id, date=today)
-        connected_student.add()
+                                                            StudentConnectedTariff.tariff_id == tariff.id).order_by(
+        StudentConnectedTariff.id).all()
+    if not connected_student and list:
+        for item in list:
+            connected_student = StudentConnectedTariff(student_id=student.id, tariff_id=tariff.id, date=today,
+                                                       country_id=item['country_id'],
+                                                       university_id=item['university_id'],
+                                                       occupation_id=item['occupation_id'])
+            connected_student.add()
         cost = Cost(cost=int(tariff.cost), student_id=student.id, date=today)
         cost.add()
         return jsonify({
@@ -160,11 +160,13 @@ def change_tariffs():
     name = req['name']
     cost = req['cost']
     color = req['color']
+    number = req['number']
     additions = req['selectedSubs']
     tariff = Tariff.query.filter(Tariff.id == tariff_id).first()
     if tariff:
         tariff.name = name
         tariff.cost = cost
+        tariff.number = number
         tariff.color = color
         addition_tariff = AdditionTariff.query.filter(AdditionTariff.first_tariff == tariff.id).order_by(
             AdditionTariff.id).all()
@@ -193,10 +195,11 @@ def register_tariff():
     name = req['name']
     cost = req['cost']
     color = req['color']
+    number = req['number']
     additions = req['selectedSubs']
     tariff = Tariff.query.filter(Tariff.name == name).first()
     if not tariff:
-        tariff = Tariff(name=name, color=color, cost=cost)
+        tariff = Tariff(name=name, color=color, cost=cost, number=number)
         tariff.add()
         for addition in additions:
             addition_tariff = AdditionTariff(first_tariff=tariff.id, second_tariff=addition)

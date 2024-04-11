@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
 SECRET_KEY = os.urandom(32)
 # Grabs the folder where the script runs.

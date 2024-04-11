@@ -1,6 +1,6 @@
-from app import request, app, jsonify
+from app import app, jsonify
 from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity, create_refresh_token
-from backend.settings.settings import api, img_file, check_account_types, check_file_type, add_countries, admin, \
+from backend.settings.settings import api, check_account_types, check_file_type, add_countries, admin, \
     check_payment, student_code
 from backend.models.basic_model import url
 from backend.models.basic_model import User
@@ -17,10 +17,8 @@ def refresh():
     user_img = None
     if user and user.files:
         for img in user.files:
-            print(img.file_type_id)
             if img.file_type_id == 12:
                 user_img = f'{url}{img.file}',
-    print(user_img)
     if user.role == student_code:
         return jsonify({
             'id': user.id,
@@ -46,9 +44,9 @@ def refresh():
 def update_base(password):
     if password == 'nigga_1942':
         check_file_type()
-        check_account_types()
-        admin()
-        add_countries()
+        # check_account_types()
+        # admin()
+        # add_countries()
         return jsonify({
             'status': 'Nigga'
         })
